@@ -1,27 +1,98 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>The MHz Club</title>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>The MHz Club — Coming Soon</title>
   <style>
-    body {
-      background-color: #000;
-      color: #0f0;
-      font-family: monospace;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      text-align: center;
+    :root{
+      --bg:#0b0b0b;
+      --led:#20ff80;   /* LED green */
+      --dim:#9aa0a6;   /* grey for small text */
     }
-    h1 { font-size: 3em; }
-    p { font-size: 1.5em; }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      background:var(--bg);
+      color:#e5e5e5;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      display:flex; align-items:center; justify-content:center;
+      padding:2rem;
+    }
+    .wrap{max-width:900px; width:100%; text-align:center}
+    .badge{
+      display:inline-block;
+      border:1px solid #1f1f1f;
+      background:#121212;
+      padding:1.25rem 1.75rem;
+      border-radius:8px;
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.03) inset, 0 8px 30px rgba(0,0,0,0.35);
+    }
+    /* Seven‑segment style headline */
+    .mhz{
+      font-weight:700;
+      letter-spacing:0.06em;
+      font-size: clamp(42px, 8vw, 92px);
+      line-height:1;
+      color: var(--led);
+      text-shadow:
+        0 0 6px rgba(32,255,128,0.8),
+        0 0 18px rgba(32,255,128,0.6),
+        0 0 36px rgba(32,255,128,0.35);
+    }
+    /* Segment look using CSS outlines */
+    .mhz span{
+      display:inline-block;
+      padding:0 .08em;
+      position:relative;
+      -webkit-text-stroke: 3px rgba(32,255,128,0.35);
+    }
+    .sub{
+      margin-top:0.75rem;
+      font-size: clamp(16px, 2.5vw, 22px);
+      color:#cfcfcf;
+    }
+    .meta{
+      margin-top:1rem;
+      font-size:14px;
+      color:var(--dim);
+      opacity:.9;
+    }
+    .cursor::after{
+      content:"▌";
+      color:var(--led);
+      margin-left:6px;
+      animation: blink 1s steps(1,end) infinite;
+      text-shadow:
+        0 0 6px rgba(32,255,128,0.8),
+        0 0 18px rgba(32,255,128,0.6);
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    .links{margin-top:1.25rem; display:flex; gap:.75rem; justify-content:center; flex-wrap:wrap}
+    .btn{
+      color:#101010; background:var(--led);
+      text-decoration:none; font-weight:700;
+      padding:.55rem .9rem; border-radius:6px;
+      box-shadow: 0 0 10px rgba(32,255,128,0.35);
+    }
+    .btn.ghost{
+      background:transparent; color:#cfcfcf; border:1px solid #2a2a2a;
+      box-shadow:none;
+    }
+    footer{margin-top:1.25rem; font-size:12px; color:#8a8f98}
   </style>
 </head>
 <body>
-  <div>
-    <h1>THE MHz CLUB</h1>
-    <p>Coming Soon...</p>
-  </div>
+  <main class="wrap">
+    <div class="badge">
+      <div class="mhz"><span>THE</span> <span>MHz</span> <span>CLUB</span></div>
+      <div class="sub cursor">Coming soon — modern LCD Turbo Display for retro PCs</div>
+      <div class="meta">Fits case displays and 3.5″/5.25″ drive bays • RS‑232 control • Logos & animations from microSD</div>
+    </div>
+    <footer>© <span id="y"></span> The MHz Club • A SigFreq project</footer>
+  </main>
+  <script>document.getElementById('y').textContent=new Date().getFullYear()</script>
 </body>
 </html>
