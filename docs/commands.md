@@ -1,254 +1,194 @@
-# MHz Club Serial Command Protocol (MVP)
+# MHz Club Serial Command Protocol
 
-**Version:** 0.2 (draft)  
-**Transport:** RS-232 (8N1), default 9600 bps (configurable later)  
-**Framing:** ASCII lines terminated with LF (`\n`)  
-**Case:** Command keywords are case-insensitive; filenames/strings are case-sensitive  
-**Max line length:** 128 bytes (extra bytes ignored until `\n`)  
-**Responses:** `OK` on success, or `ERR <CODE> [detail]` on failure
+**Version:** 0.32 (30 Aug 2025)
+**Transport:** RS‑232 (8N1), default 9600 bps (configurable later)  
+**Framing:** ASCII lines terminated with LF (`\n`) unless noted  
+**Case:** Command keywords are case‑insensitive; filenames/strings are case‑sensitive  
+**Max line length:** 128 bytes for ASCII commands (binary payloads defined below)  
+**Responses:** `OK` or `ERR <CODE> [detail]`  
+**Error policy:** Parser **stops on first error** for command files (`RUN`).
 
 ---
 
-## 1) TEXT — 7-segment text
-**Syntax**
+## 1) TEXT — 7‑segment text
 ```
 TEXT "<string>"
 ```
-- Draws classic monospaced 7-segment glyphs: digits, common letters (H, I, L, O, U, Y, A–F, etc.), `-`, `_`, `=`, space.
-- A period `.` attaches a decimal point (DP) to the previous glyph.
-- No separate mode required; takes effect immediately.
-
-**Examples**
-```
-TEXT "66"
-TEXT "HI"
-TEXT "LO"
-TEXT "133.3"
-```
-
-**Errors**
-- `ERR TOO_LONG` if it won’t fit the current layout/window.
-- `OK` even if unsupported chars are present (those render blank).
+- Monospaced 7‑segment glyphs (digits, common letters, `-`, `_`, `=`, space).  
+- Period `.` attaches a decimal point to the previous glyph.  
+- Honors ORIENT/MIRROR/SCALE/OFFSET.
 
 ---
 
-## 2) SETMHZ — convenience wrapper for numbers
-**Syntax**
+## 2) SETMHZ — convenience for numbers
 ```
 SETMHZ <value>
 ```
-- `<value>` may be integer or decimal (e.g., `66`, `133.3`).
-- If there’s a decimal point, DP is rendered; otherwise whole digits.
-
-**Examples**
-```
-SETMHZ 66
-SETMHZ 133.3
-SETMHZ 200
-```
-
-**Errors**
-- `ERR BAD_ARGS` (non-numeric/negative)
-- `ERR TOO_LONG` (formatted number can’t fit)
+- Integer or decimal; DP rendered if decimal.  
+- Honors ORIENT/MIRROR/SCALE/OFFSET.
 
 ---
 
-## 3) CLEAR — blank the display
-**Syntax**
+## 3) CLEAR — blank display
 ```
 CLEAR
 ```
-- Clears to the current background color.  
-- Does not change other settings.
-
-**Errors**
-- None.
 
 ---
 
-## 4) BRIGHT — backlight level (percent)
-**Syntax**
+## 4) BRIGHT — backlight percent
 ```
 BRIGHT <level>
 ```
-- `<level>` = integer 0–100 (0 = off, 100 = max).
-
-**Errors**
-- `ERR BAD_ARGS` (non-integer or out of range)
+- `<level>` 0–100.
 
 ---
 
-## 5) OFFSET — positional shift (pixels)
-**Syntax**
+## 5) OFFSET — positional shift (px)
 ```
 OFFSET <x> <y>
 ```
-- Signed integers; +x right, +y down.  
-- Applies to subsequent renders.
-
-**Errors**
-- `ERR BAD_ARGS`  
-- Implementation may clip silently when out of bounds.
 
 ---
 
 ## 6) SCALE — size factor
-**Syntax**
 ```
 SCALE <factor>
 ```
-- Any positive float (e.g., `0.5`, `1.333`, `2.0`).  
-- Applies to subsequent renders.
-
-**Errors**
-- `ERR BAD_ARGS` (non-numeric or `<= 0`)
+- Positive float.
 
 ---
 
 ## 7) SHOW — display image from SD
-**Syntax**
 ```
 SHOW <filename>
 ```
-- Still images first (MVP): BMP (uncompressed 16/24-bit).  
-- Honors current `SCALE` and `OFFSET`.
-
-**Errors**
-- `ERR FILE_NOT_FOUND`  
-- `ERR UNSUPPORTED` (format)  
-- `ERR TOO_LARGE` (memory/buffer)
+- BMP only (uncompressed 16/24‑bit).  
+- Honors ORIENT/MIRROR/SCALE/OFFSET.
 
 ---
 
-## Transitions (MVP)
-
-### 8) FADE — fade out backlight
-**Syntax**
+## 8–11) Transitions
 ```
 FADE <ms>
-```
-- Gradually dims backlight to 0 over `<ms>` milliseconds.
-
-### 9) FADEIN — fade in backlight
-**Syntax**
-```
 FADEIN <ms>
-```
-- Gradually restores backlight from 0 up to last `BRIGHT` setting over `<ms>`.
-
-### 10) SLIDEOUT — slide current frame off-screen
-**Syntax**
-```
 SLIDEOUT <LEFT|RIGHT|UP|DOWN> <ms>
-```
-- Moves content off in given direction. Ends blank.
-
-### 11) WIPEOUT — wipe clear in direction
-**Syntax**
-```
 WIPEOUT <LEFT|RIGHT|UP|DOWN> <ms>
 ```
-- Clears screen by sweeping a bar in given direction.
+- Directions are **viewer‑relative** regardless of ORIENT/MIRROR.
 
 ---
 
-## Scripts & Timing (MVP)
-
-> A *command file* is a plain text file of these same commands. Use `RUN` to execute any command file—for presets, demos, intros, or idle loops. There is no separate PROFILE concept.
-
-### 12) RUN — execute a command file
-**Syntax**
+## 12–14) Scripts & Timing
 ```
 RUN <filename> [LOOP]
-```
-- Executes a plain text file of commands from SD.  
-- Default path: `/scripts/<filename>` if no path given.  
-- `LOOP` (optional): when end-of-file is reached, restart from the top until `STOP`.  
-- Comments: lines starting with `#` or `;` are ignored.  
-- Blank lines are ignored.  
-- Nesting: a command file **may not call `RUN`** (to avoid recursion).
-
-**Behavior**
-- **Stops on first error** in the file and returns that error (strict mode).  
-- While running (including during `DELAY`), serial input is still read; `STOP` can abort at any time.
-
-**Limits (defaults)**
-- Max file size: 8 KB  
-- Max lines: 256  
-- Max line length: 128 bytes  
-- Safety timeout for a single `RUN`: 60 s (ignored if `LOOP` is used)
-
-**Errors**
-- `ERR FILE_NOT_FOUND`  
-- `ERR BAD_ARGS`  
-- `ERR NESTING_LIMIT`  
-- Any error returned by a line within the file (propagated)
-
-**Examples**
-```
-RUN intro.scr
-RUN idle.scr LOOP
-```
-
-### 13) DELAY — pause
-**Syntax**
-```
 DELAY <ms>
-```
-- Pauses file/script execution for `<ms>` milliseconds.  
-- Typical range: 50–5000 ms. Values outside are clamped to 1–30000 ms.
-
-**Errors**
-- `ERR BAD_ARGS`
-
-**Example**
-```
-DELAY 250
-```
-
-### 14) STOP — abort script/transition
-**Syntax**
-```
 STOP
 ```
-- Immediately aborts the currently running `RUN` (including `LOOP`) or any in-progress transition.  
-- Returns `OK`; device goes to idle ready state.
+- `RUN` executes a text file of commands (no recursion: `RUN` inside a `RUN` forbidden).  
+- `LOOP` repeats until `STOP`.  
+- Comments starting with `#` or `;` are ignored.  
+- Parser for command files **stops on first error**.
 
-**Errors**
-- None
-
-**Example (script-as-animation)**
-```
-# /scripts/logo_cycle.scr
-SHOW logo1.bmp
-DELAY 250
-SHOW logo2.bmp
-DELAY 250
-SHOW logo3.bmp
-DELAY 250
-FADE 200
-CLEAR
-FADEIN 200
-```
-```
-RUN logo_cycle.scr LOOP   # loops until STOP
-```
+**Defaults/limits for RUN**  
+- Max file size: 8 KB; ≤256 lines; ≤128‑byte lines.  
+- Safety timeout per `RUN`: 60 s (ignored if `LOOP`).
 
 ---
 
-## Error codes
-- `ERR UNKNOWN_COMMAND`
-- `ERR BAD_ARGS`
-- `ERR FILE_NOT_FOUND`
-- `ERR UNSUPPORTED`
-- `ERR TOO_LONG`
-- `ERR OUT_OF_RANGE`
-- `ERR NESTING_LIMIT`
+## 15–19) Binary File Transfer (CRC32‑based)
+Purpose: let the host (e.g., DOOM) push assets (e.g., face bitmaps) to SD once, then reuse via `SHOW`.  
+Design: **chunked, CRC32‑verified, idempotent**, stop‑and‑wait flow.
+
+> **CRC32 parameters** (for both chunks and total): polynomial 0xEDB88320, init 0xFFFFFFFF, input/output reflected, final XOR 0xFFFFFFFF (ZIP/Ethernet standard).
+
+### 15) FILESTAT — query file on SD
+```
+FILESTAT <path>
+```
+Reply:  
+- `OK FILE <size> <crc32>` — file exists (crc32 = total file CRC32, hex lowercase).  
+- `ERR FILE_NOT_FOUND`.
+
+### 16) PUTBEGIN — start upload
+```
+PUTBEGIN <path> <size> <crc32_total>
+```
+- If file exists with same size+CRC32 → `OK SKIP`.  
+- Else → prepare temp file, reply `OK READY`.
+
+### 17) PUTCHUNK — send one chunk
+```
+PUTCHUNK <seq> <offset> <len> <crc32_chunk>
+<binary payload of exactly <len> bytes follows immediately>
+```
+- `<seq>`: sequential chunk index starting at 0.  
+- `<offset>`: absolute byte offset.  
+- `<len>`: 1..1024 bytes.  
+- `<crc32_chunk>`: CRC32 of payload only.
+
+Replies:  
+- `OK CHUNK <seq>` — accepted & written.  
+- `ERR CHUNK <seq> CHECKSUM` — resend same chunk.  
+- `ERR CHUNK <seq> OUT_OF_ORDER` — wrong seq/offset; resend.  
+- `ERR CHUNK <seq> RANGE` — `<offset>+<len>` exceeds announced `<size>`.
+
+> **Flow control:** Sender waits for each line reply before sending the next chunk (stop‑and‑wait).
+
+### 18) PUTEND — finalize upload
+```
+PUTEND <crc32_total>
+```
+- Close temp file, compute total CRC32, compare to `<crc32_total>`.  
+- `OK STORED` on match; else `ERR CHECKSUM` (or `ERR LENGTH` if bytes mismatch).
+
+### 19) PUTABORT — cancel upload
+```
+PUTABORT
+```
+- Discard partial; reply `OK ABORTED`.
+
+**Receiver defaults/limits**  
+- Max file size: 8 MB.  
+- Max chunk: 1024 bytes.  
+- One upload at a time; `ERR BUSY` if another active.  
+- Timeout: if no chunk ≤5 s after `OK READY`, auto‑abort.
 
 ---
 
-## Notes & defaults
-- Defaults on boot: `BRIGHT 100`, `OFFSET 0 0`, `SCALE 1.0`.  
-- Commands are atomic; responses are line-buffered.  
-- Scripts can serve as simple animations (SHOW + DELAY).  
-- Future extensions (non-breaking): smoother frame streaming (`SHOWRAW`), query commands, binary mode.
+## 20) ORIENT — screen rotation (0°/90°/180°/270°)
+```
+ORIENT <0|90|180|270>
+```
+- `0` = upright (default), `90` = rotate CW 90°, `180` = upside‑down, `270` = rotate CW 270°.  
+- Applies to all rendering (`TEXT`, `SHOW`, transitions).  
+- Persist until changed (device may also persist to config if implemented).
+
+Errors: `ERR BAD_ARGS` for other values.
+
+### 21) MIRROR — horizontal/vertical flip
+```
+MIRROR <NONE|H|V|HV>
+```
+- `NONE` (default), `H` (horizontal), `V` (vertical), `HV` (both).  
+- Applies to all rendering. Useful for unusual mounting/bezels.
+
+Errors: `ERR BAD_ARGS`.
+
+**Transform notes**  
+- Transitions remain **viewer‑relative** after rotation/mirroring.  
+- 7‑segment text at 90°/270° is rotated as an image (segments rotate accordingly).  
+- Composition order: apply **ORIENT** then **MIRROR**.
+
+---
+
+## Error Codes
+`ERR UNKNOWN_COMMAND`, `ERR BAD_ARGS`, `ERR FILE_NOT_FOUND`, `ERR UNSUPPORTED`, `ERR TOO_LONG`, `ERR OUT_OF_RANGE`, `ERR NESTING_LIMIT`, `ERR CHECKSUM`, `ERR RANGE`, `ERR LENGTH`, `ERR OUT_OF_ORDER`, `ERR BUSY`.
+
+---
+
+## Defaults & Notes
+- Boot defaults: `BRIGHT 100`, `OFFSET 0 0`, `SCALE 1.0`, `ORIENT 0`, `MIRROR NONE`.  
+- Scripts double as animations (`SHOW` + `DELAY`).  
+- Binary transfer uses CRC32 for both chunks and whole‑file identity.  
+- Future extensions (non‑breaking): `SETBAUD`, smoother frame streaming (`SHOWRAW`).  
