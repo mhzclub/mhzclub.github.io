@@ -1,6 +1,6 @@
 # MHz Club Serial Command Protocol
 
-**Version:** 0.32 (30 Aug 2025)
+**Version:** 0.33 (30 Aug 2025)
 **Transport:** RS‑232 (8N1), default 9600 bps (configurable later)  
 **Framing:** ASCII lines terminated with LF (`\n`) unless noted  
 **Case:** Command keywords are case‑insensitive; filenames/strings are case‑sensitive  
@@ -94,6 +94,11 @@ STOP
 - Max file size: 8 KB; ≤256 lines; ≤128‑byte lines.  
 - Safety timeout per `RUN`: 60 s (ignored if `LOOP`).
 
+**Startup script**  
+- On boot, if `/startup.scr` exists on SD, it is executed as if by `RUN startup.scr`.  
+- Stops on first error.  
+- Use this to set persistent preferences (e.g., `SETBAUD`, `COLOR`, `ORIENT`).
+
 ---
 
 ## 15–19) Binary File Transfer (CRC32‑based)
@@ -182,13 +187,67 @@ Errors: `ERR BAD_ARGS`.
 
 ---
 
+## 22) PING — link test
+```
+PING
+```
+- Replies: `OK PONG`.
+
+---
+
+## 23) INFO — firmware/device info
+```
+INFO
+```
+- Replies:  
+  ```
+  OK INFO v0.33 Platform=PicoRP2040 LCD=240x240 SD=OK
+  ```
+- Fields: firmware version, Platform identifier, LCD resolution, SD status.
+
+---
+
+## 24) COLOR / COLOUR — set text colors
+```
+COLOR <fg> <bg>
+```
+- `<fg>` and `<bg>` = 16‑bit RGB565 hex values (e.g., 0xFFFF = white).  
+- Applies to `TEXT`.  
+- Defaults: fg=0xFFFF, bg=0x0000.
+
+Both spellings accepted.
+
+---
+
+## 25) RESET — restore defaults
+```
+RESET
+```
+- Restores: BRIGHT=100, SCALE=1.0, OFFSET=0 0, ORIENT=0, MIRROR=NONE, COLOR fg=white/bg=black, BAUD=9600.  
+- Clears screen.  
+- Reply: `OK RESET`.
+
+---
+
+## 26) SETBAUD — change serial baud rate
+```
+SETBAUD <bps>
+```
+- `<bps>` allowed: 9600, 19200, 38400, 57600, 115200.  
+- Reply: `OK SETBAUD <bps>`.  
+- Takes effect immediately after reply. Host must switch baud after acknowledgment.  
+- Errors: `ERR BAD_ARGS` if unsupported.
+
+---
+
 ## Error Codes
 `ERR UNKNOWN_COMMAND`, `ERR BAD_ARGS`, `ERR FILE_NOT_FOUND`, `ERR UNSUPPORTED`, `ERR TOO_LONG`, `ERR OUT_OF_RANGE`, `ERR NESTING_LIMIT`, `ERR CHECKSUM`, `ERR RANGE`, `ERR LENGTH`, `ERR OUT_OF_ORDER`, `ERR BUSY`.
 
 ---
 
 ## Defaults & Notes
-- Boot defaults: `BRIGHT 100`, `OFFSET 0 0`, `SCALE 1.0`, `ORIENT 0`, `MIRROR NONE`.  
+- Boot defaults: BRIGHT 100, SCALE 1.0, OFFSET 0 0, ORIENT 0, MIRROR NONE, COLOR fg=white/bg=black, BAUD=9600.  
 - Scripts double as animations (`SHOW` + `DELAY`).  
 - Binary transfer uses CRC32 for both chunks and whole‑file identity.  
-- Future extensions (non‑breaking): `SETBAUD`, smoother frame streaming (`SHOWRAW`).  
+- Startup script `/startup.scr` executed automatically on boot.  
+- Future extensions (non‑breaking): smoother frame streaming (`SHOWRAW`).  
