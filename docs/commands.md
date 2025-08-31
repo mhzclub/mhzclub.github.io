@@ -1,6 +1,6 @@
-# MHz Club Serial Command Protocol (MVP)
+# MHz Club Serial Command Protocol
 
-**Version:** 0.34 (draft, 31 Aug 2025 — CRC32 + Orientation/Mirror + Utility cmds + Startup search order + .mhz scripts)  
+**Version:** 0.34
 **Transport:** RS‑232 (8N1), default 9600 bps (configurable later)  
 **Framing:** ASCII lines terminated with LF (`\n`) unless noted  
 **Case:** Command keywords are case‑insensitive; filenames/strings are case‑sensitive  
